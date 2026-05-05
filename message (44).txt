@@ -1,0 +1,955 @@
+if getgenv().key == 676767 then
+
+getgenv().IntroKey = 676767
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/percwalkkk/rabbitware/refs/heads/main/Intro.lua"))()
+
+wait(1)
+
+local function getClosestHand()
+    local character = game.Players.LocalPlayer.Character
+    local ball = game.Players.LocalPlayer.Character:FindFirstChild("Basketball")
+    if not character then return nil end
+    
+    local rightHand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
+    local leftHand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm")
+    
+    if not rightHand or not leftHand then return nil end
+    
+    local ballPosition = ball.Position
+    local rightDistance = (rightHand.Position - ballPosition).Magnitude
+    local leftDistance = (leftHand.Position - ballPosition).Magnitude
+    
+    local threshold = 2
+    
+    if rightDistance < threshold and rightDistance < leftDistance then
+        return "Right"
+    elseif leftDistance < threshold then
+        return "Left"
+    end
+    
+    return nil
+end
+
+-- =============================================
+-- DRIBBLE MACRO SYSTEM
+-- =============================================
+
+local MOVE_NAMES = {
+    "Side Step",
+    "Crossover",
+    "Spin Move",
+    "Double Crossover",
+    "Stepback Switch Hands",
+}
+
+local function fireDribble(keys)
+    local args = { keys }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Dribble"):FireServer(unpack(args))
+end
+
+local function executeMove(moveName)
+    local hand = getClosestHand()
+    if moveName == "Side Step" then
+        if hand == "Left" then fireDribble({Enum.KeyCode.Z}) else fireDribble({Enum.KeyCode.C}) end
+    elseif moveName == "Crossover" then
+        if hand == "Left" then fireDribble({Enum.KeyCode.C})
+        elseif hand == "Right" then fireDribble({Enum.KeyCode.Z})
+        else fireDribble({Enum.KeyCode.X}) end
+    elseif moveName == "Spin Move" then
+        if hand == "Left" then fireDribble({Enum.KeyCode.C, Enum.KeyCode.C})
+        else fireDribble({Enum.KeyCode.Z, Enum.KeyCode.Z}) end
+    elseif moveName == "Double Crossover" then
+        if hand == "Right" then fireDribble({Enum.KeyCode.C, Enum.KeyCode.C})
+        else fireDribble({Enum.KeyCode.Z, Enum.KeyCode.Z}) end
+    elseif moveName == "Stepback Switch Hands" then
+        fireDribble({Enum.KeyCode.X, Enum.KeyCode.X})
+    end
+end
+
+getgenv().SavedMacros = getgenv().SavedMacros or {}
+getgenv().AutoGuardMethod = getgenv().AutoGuardMethod or "Blatant"
+getgenv().AutoGuardSpeed = getgenv().AutoGuardSpeed or 20
+
+local MacroConnections = {}
+
+local function stopMacro(name)
+    if MacroConnections[name] then
+        getgenv().SavedMacros[name].active = false
+        MacroConnections[name] = false
+    end
+end
+
+local function runMacro(name)
+    local macro = getgenv().SavedMacros[name]
+    if not macro or #macro.moves == 0 then return end
+    if macro.active then return end
+
+    macro.active = true
+
+    coroutine.wrap(function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("Basketball") then
+            for _, moveName in ipairs(macro.moves) do
+                executeMove(moveName)
+                task.wait(macro.delay or 0.1)
+            end
+        end
+        macro.active = false
+    end)()
+end
+
+local MacroKeybindConnections = {}
+
+local function bindMacroKey(name, keyCode)
+    if MacroKeybindConnections[name] then
+        MacroKeybindConnections[name]:Disconnect()
+        MacroKeybindConnections[name] = nil
+    end
+    if not keyCode then return end
+    MacroKeybindConnections[name] = game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == keyCode then
+            runMacro(name)
+        end
+    end)
+end
+
+local LoadingTick = os.clock()
+
+-- =============================================
+-- KIWISENSE UI LIBRARY
+-- =============================================
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/percwalkkk/libs/refs/heads/main/Kiwisense/Library.lua"))()
+
+-- =============================================
+-- UI SETUP
+-- =============================================
+do
+    local Window = Library:Window({
+        Name = "rabbit ware",
+        Version = "v1.0",
+        Logo = "103201728925567",
+        FadeSpeed = 0.25,
+    })
+
+    local Watermark = Library:Watermark("rabbit ware", "103201728925567")
+    Watermark:SetVisibility(false)
+    local KeybindList = Library:KeybindsList()
+    KeybindList:SetVisibility(false)
+
+    do
+        local Pages = {
+            ["Combat"] = Window:Page({
+                Name = "pvp",
+                Icon = "111178525804834",
+                SubPages = true,
+            }),
+
+            ["Visuals"] = Window:Page({
+                Name = "visuals",
+                Icon = "115907015044719",
+                Columns = 2
+            }),
+
+            ["Misc"] = Window:Page({
+                Name = "misc",
+                Icon = "136623465713368",
+                Columns = 2
+            }),
+
+            ["Movement"] = Window:Page({
+                Name = "movement",
+                Icon = "109463522861706",
+                Columns = 2
+            }),
+
+            ["Settings"] = Window:Page({
+                Name = "settings",
+                Icon = "137300573942266",
+                Columns = 2,
+                SubPages = true
+            })
+        }
+
+        -- =============================================
+        -- PVP PAGE (Subpages: Aimbot, Dribble, Defense)
+        -- =============================================
+        do
+            local Subpages = {
+                ["Aimbot"] = Pages["Combat"]:SubPage({
+                    Name = "aimbot",
+                    Icon = "6034230649",
+                    Columns = 2
+                }),
+                ["Dribble"] = Pages["Combat"]:SubPage({
+                    Name = "dribble",
+                    Icon = "6034227141",
+                    Columns = 2
+                }),
+                ["Defense"] = Pages["Combat"]:SubPage({
+                    Name = "defense",
+                    Icon = "6022668945",
+                    Columns = 2
+                }),
+            }
+
+            -- =============================================
+            -- AIMBOT SUBPAGE
+            -- =============================================
+            do
+                local AimbotSection = Subpages["Aimbot"]:Section({Name = "Aimbot", Icon = "103174889897193", Side = 1})
+                local SpinbotSection = Subpages["Aimbot"]:Section({Name = "Spin Bot", Icon = "103174889897193", Side = 1})
+                local CharacterSection = Subpages["Aimbot"]:Section({Name = "Character", Icon = "103174889897193", Side = 2})
+
+                AimbotSection:Toggle({
+                    Name = "Auto Time",
+                    Flag = "AimbotEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().Aimbot = Value
+                    end
+                })
+
+                CharacterSection:Toggle({
+                    Name = "Speed Boost",
+                    Flag = "SpeedBoostEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().SpeedBoost = Value
+                    end
+                })
+
+                CharacterSection:Slider({
+                    Name = "Speed",
+                    Flag = "SpeedBoostSpeed",
+                    Min = 1,
+                    Default = 1,
+                    Max = 5,
+                    Decimals = 0.1,
+                    Callback = function(Value)
+                        getgenv().SpeedMultiplier = Value/5
+                    end
+                })
+
+                CharacterSection:Toggle({
+                    Name = "Infinite Stamina",
+                    Flag = "InfStamEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().InfiniteStamina = Value
+                    end
+                })
+
+                CharacterSection:Toggle({
+                    Name = "Anti Out of Bounds",
+                    Flag = "AntiOOBEnable",
+                    Default = false,
+                    Callback = function(State)
+                        for _, part in pairs(workspace:GetDescendants()) do
+                            if part:IsA("Part") or part:IsA("BasePart") then
+                                if part.Name:lower():find("outofbounds") or part.Name:lower():find("courtborder") then
+                                    part.CanTouch = not State
+                                    part.CanCollide = not State
+                                end
+                            end
+                        end
+                    end
+                })
+
+                CharacterSection:Toggle({
+                    Name = "Auto Sprint",
+                    Flag = "AutoSprintEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().AutoSprint = Value
+                    end
+                })
+
+                SpinbotSection:Toggle({
+                    Name = "Spinbot",
+                    Flag = "SpinbotEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().SpinBot = Value
+                    end
+                })
+
+                SpinbotSection:Slider({
+                    Name = "Spin Speed",
+                    Flag = "SpinSpeedSlider",
+                    Min = 1,
+                    Default = 10,
+                    Max = 50,
+                    Decimals = 1,
+                    Callback = function(Value)
+                        getgenv().SpinSpeed = Value
+                    end
+                })
+            end
+
+            -- =============================================
+            -- DRIBBLE SUBPAGE
+            -- =============================================
+            do
+                local SavedMacrosSection = Subpages["Dribble"]:Section({Name = "Saved Macros", Icon = "103174889897193", Side = 1})
+                local CustomMacrosSection = Subpages["Dribble"]:Section({Name = "Custom Macros", Icon = "103174889897193", Side = 2})
+                local ImportExportSection = Subpages["Dribble"]:Section({Name = "Import / Export", Icon = "103174889897193", Side = 2})
+
+                local currentMacroName = ""
+                local currentMacroMoves = {}
+                local currentMacroDelay = 0.1
+                local selectedSavedMacro = nil
+
+                local function getMacroNames()
+                    local names = {}
+                    for k, _ in pairs(getgenv().SavedMacros) do
+                        table.insert(names, k)
+                    end
+                    return names
+                end
+
+                local function formatSequence(moves)
+                    if #moves == 0 then return "Empty" end
+                    return table.concat(moves, " > ")
+                end
+
+                local MacroSelectDropdown = SavedMacrosSection:Dropdown({
+                    Name = "Select Macro",
+                    Flag = "MacroSelect",
+                    Items = getMacroNames(),
+                    Multi = false,
+                    MaxSize = 100,
+                    Callback = function(Value)
+                        selectedSavedMacro = Value
+                    end
+                })
+
+                SavedMacrosSection:Slider({
+                    Name = "Macro Delay",
+                    Flag = "MacroDelay",
+                    Min = 0,
+                    Default = 1,
+                    Max = 10,
+                    Suffix = "",
+                    Decimals = 0.1,
+                    Callback = function(Value)
+                        if selectedSavedMacro and getgenv().SavedMacros[selectedSavedMacro] then
+                            getgenv().SavedMacros[selectedSavedMacro].delay = Value / 10
+                        end
+                    end
+                })
+
+                local macroKeybindInput = ""
+                SavedMacrosSection:Textbox({
+                    Name = "Set Macro Keybind",
+                    Flag = "MacroKeybindInput",
+                    Placeholder = "e.g. G, F, RightShift...",
+                    Default = "",
+                    Callback = function(Value)
+                        macroKeybindInput = Value
+                        if not selectedSavedMacro then return end
+                        if not getgenv().SavedMacros[selectedSavedMacro] then return end
+                        local ok, keyCode = pcall(function()
+                            return Enum.KeyCode[Value]
+                        end)
+                        if ok and keyCode then
+                            getgenv().SavedMacros[selectedSavedMacro].keybind = keyCode
+                            bindMacroKey(selectedSavedMacro, keyCode)
+                        end
+                    end
+                })
+
+                SavedMacrosSection:Button({
+                    Name = "Test Selected Macro",
+                    Callback = function()
+                        if not selectedSavedMacro then return end
+                        runMacro(selectedSavedMacro)
+                    end
+                })
+
+                SavedMacrosSection:Button({
+                    Name = "Delete Selected Macro",
+                    Callback = function()
+                        if not selectedSavedMacro then return end
+                        stopMacro(selectedSavedMacro)
+                        getgenv().SavedMacros[selectedSavedMacro] = nil
+                        selectedSavedMacro = nil
+                        pcall(function() MacroSelectDropdown:Refresh(getMacroNames()) end)
+                    end
+                })
+
+                SavedMacrosSection:Button({
+                    Name = "Refresh Macro List",
+                    Callback = function()
+                        pcall(function() MacroSelectDropdown:Refresh(getMacroNames()) end)
+                    end
+                })
+
+                -- Custom Macro Builder
+                CustomMacrosSection:Textbox({
+                    Name = "Macro Name",
+                    Flag = "NewMacroName",
+                    Placeholder = "Enter macro name...",
+                    Default = "",
+                    Callback = function(Value)
+                        currentMacroName = Value
+                    end
+                })
+
+                local SequenceLabel = CustomMacrosSection:Label("Sequence: Empty", "Left")
+
+                local function updateSequenceLabel()
+                    pcall(function()
+                        SequenceLabel.Items["Text"].Instance.Text = "Sequence: " .. formatSequence(currentMacroMoves)
+                    end)
+                end
+
+                CustomMacrosSection:Dropdown({
+                    Name = "Add Move",
+                    Flag = "AddMoveDropdown",
+                    Items = MOVE_NAMES,
+                    Multi = false,
+                    MaxSize = 100,
+                    Callback = function(Value)
+                        if Value and Value ~= "" then
+                            table.insert(currentMacroMoves, Value)
+                            updateSequenceLabel()
+                        end
+                    end
+                })
+
+                CustomMacrosSection:Button({
+                    Name = "Clear Sequence",
+                    Callback = function()
+                        currentMacroMoves = {}
+                        updateSequenceLabel()
+                    end
+                })
+
+                CustomMacrosSection:Button({
+                    Name = "Save Macro",
+                    Callback = function()
+                        if currentMacroName == "" then return end
+                        if #currentMacroMoves == 0 then return end
+                        getgenv().SavedMacros[currentMacroName] = {
+                            moves = table.clone(currentMacroMoves),
+                            delay = currentMacroDelay,
+                            keybind = nil,
+                            active = false
+                        }
+                        pcall(function() MacroSelectDropdown:Refresh(getMacroNames()) end)
+                        currentMacroMoves = {}
+                        updateSequenceLabel()
+                    end
+                })
+
+                -- Import / Export
+                ImportExportSection:Button({
+                    Name = "Export All Macros",
+                    Callback = function()
+                        local HttpService = game:GetService("HttpService")
+                        local export = {}
+                        for name, data in pairs(getgenv().SavedMacros) do
+                            export[name] = {moves = data.moves, delay = data.delay}
+                        end
+                        setclipboard(HttpService:JSONEncode(export))
+                    end
+                })
+
+                ImportExportSection:Textbox({
+                    Name = "Import Data",
+                    Flag = "ImportMacroData",
+                    Placeholder = "Paste macro data here...",
+                    Default = "",
+                    Callback = function(Value)
+                        getgenv()._importMacroData = Value
+                    end
+                })
+
+                ImportExportSection:Button({
+                    Name = "Import Macros",
+                    Callback = function()
+                        local data = getgenv()._importMacroData
+                        if not data or data == "" then return end
+                        local HttpService = game:GetService("HttpService")
+                        local ok, decoded = pcall(function() return HttpService:JSONDecode(data) end)
+                        if not ok or type(decoded) ~= "table" then return end
+                        for name, macroData in pairs(decoded) do
+                            if type(macroData.moves) == "table" then
+                                getgenv().SavedMacros[name] = {
+                                    moves = macroData.moves,
+                                    delay = macroData.delay or 0.1,
+                                    keybind = nil,
+                                    active = false
+                                }
+                            end
+                        end
+                        pcall(function() MacroSelectDropdown:Refresh(getMacroNames()) end)
+                    end
+                })
+            end
+
+            -- =============================================
+            -- DEFENSE SUBPAGE
+            -- =============================================
+            do
+                local AutoGuardSection = Subpages["Defense"]:Section({Name = "Auto Guard", Icon = "103174889897193", Side = 1})
+                local AutoBlockSection = Subpages["Defense"]:Section({Name = "Auto Block", Icon = "103174889897193", Side = 2})
+
+                local AutoGuard = AutoGuardSection:Toggle({
+                    Name = "Auto Guard",
+                    Flag = "AutoGuardEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().AutoGuard = Value
+                    end
+                })
+
+                AutoGuard:Keybind({
+                    Name = "Auto Guard Keybind",
+                    Flag = "AutoGuardKeybind",
+                    Default = Enum.KeyCode.B,
+                    Mode = "toggle",
+                    Callback = function(Value)
+                        AutoGuard:Set(Value)
+                    end
+                })
+
+                AutoGuardSection:Dropdown({
+                    Name = "Guard Type",
+                    Flag = "AutoGuardType",
+                    Items = {"Legit", "Blatant"},
+                    Default = "Blatant",
+                    Multi = false,
+                    MaxSize = 75,
+                    Callback = function(Value)
+                        getgenv().AutoGuardMethod = Value
+                    end
+                })
+
+                AutoGuardSection:Slider({
+                    Name = "Guard Speed (Legit)",
+                    Flag = "AutoGuardSpeed",
+                    Min = 13,
+                    Default = 20,
+                    Max = 30,
+                    Decimals = 1,
+                    Callback = function(Value)
+                        getgenv().AutoGuardSpeed = Value
+                    end
+                })
+
+                AutoGuardSection:Slider({
+                    Name = "Guard Distance",
+                    Flag = "AutoGuardDistance",
+                    Min = 1,
+                    Default = 3,
+                    Max = 5,
+                    Suffix = "",
+                    Decimals = 0.1,
+                    Callback = function(Value)
+                        getgenv().GUARD_DISTANCE = Value
+                    end
+                })
+
+                AutoBlockSection:Toggle({
+                    Name = "Auto Block",
+                    Flag = "AutoBlockEnable",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().AutoBlock = Value
+                    end
+                })
+
+                AutoBlockSection:Slider({
+                    Name = "Block Range",
+                    Flag = "AutoBlockRange",
+                    Min = 5,
+                    Default = 20,
+                    Max = 50,
+                    Decimals = 1,
+                    Callback = function(Value)
+                        getgenv().AutoBlockRange = Value
+                    end
+                })
+
+                AutoBlockSection:Toggle({
+                    Name = "Block Notifications",
+                    Flag = "AutoBlockNotifs",
+                    Default = false,
+                    Callback = function(Value)
+                        getgenv().AutoBlockNotifications = Value
+                    end
+                })
+            end
+        end
+
+        -- =============================================
+        -- SETTINGS PAGE
+        -- =============================================
+        do
+            local Subpages = {
+                ["Configs"] = Pages["Settings"]:SubPage({Name = "configs", Icon = "96491224522405", Columns = 2}),
+                ["Theming"] = Pages["Settings"]:SubPage({Name = "theming", Icon = "103863157706913", Columns = 2}),
+                ["Configuration"] = Pages["Settings"]:SubPage({Name = "configuration", Icon = "137300573942266", Columns = 2})
+            }
+
+            do -- Theming
+                local ThemingSection = Subpages["Theming"]:Section({Name = "theming", Icon = "103863157706913", Side = 1})
+                local ThemingProfiles = Subpages["Theming"]:Section({Name = "profiles", Icon = "96491224522405", Side = 2})
+                local AutoloadSection = Subpages["Theming"]:Section({Name = "autoload", Icon = "137623872962804", Side = 2})
+
+                for Index, Value in Library.Theme do
+                    Library.ThemeColorpickers[Index] = ThemingSection:Label(Index, "Left"):Colorpicker({
+                        Name = "Colorpicker", Flag = "ColorpickerTheme" .. Index, Default = Value, Alpha = 0,
+                        Callback = function(Color, Alpha)
+                            Library.Theme[Index] = Color
+                            Library:ChangeTheme(Index, Color)
+                        end
+                    })
+                end
+
+                ThemingProfiles:Dropdown({Name = "preset themes", Items = {"Preset", "Halloween", "Aqua", "One Tap"}, Default = "Preset", Multi = false, Callback = function(Value)
+                    local ThemeData = Library.Themes[Value]
+                    if not ThemeData then return end
+                    for Index, Value in Library.Theme do
+                        Library.Theme[Index] = ThemeData[Index]; Library:ChangeTheme(Index, ThemeData[Index]); Library.ThemeColorpickers[Index]:Set(ThemeData[Index])
+                    end
+                    task.wait(0.3)
+                    Library:Thread(function()
+                        for Index, Value in Library.Theme do
+                            Library.Theme[Index] = Library.Flags["ColorpickerTheme" .. Index].Color
+                            Library:ChangeTheme(Index, Library.Flags["ColorpickerTheme" .. Index].Color)
+                        end
+                    end)
+                end})
+
+                local ThemeSelected; local ThemeName
+                do
+                    local ThemesDropdown = ThemingProfiles:Dropdown({Name = "themes", Flag = "ThemesList", Items = {}, Multi = false, Callback = function(Value) ThemeSelected = Value end})
+                    ThemingProfiles:Textbox({Name = "theme name", Default = "", Flag = "ThemeName", Placeholder = "enter text", Callback = function(Value) ThemeName = Value end})
+                    ThemingProfiles:Button({Name = "save", Callback = function()
+                        if ThemeName and ThemeName ~= "" then writefile(Library.Folders.Themes .. "/" .. ThemeName .. ".json", Library:GetTheme()); Library:RefreshThemesList(ThemesDropdown) end
+                    end})
+                    ThemingProfiles:Button({Name = "load", Callback = function()
+                        if ThemeSelected then
+                            local Success = Library:LoadTheme(readfile(Library.Folders.Themes .. "/" .. ThemeSelected))
+                            if Success then Library:Notification({Name = "Success", Description = "Loaded theme: " .. ThemeSelected, Duration = 3, Icon = "116339777575852", IconColor = Color3.fromRGB(52, 255, 164)}) end
+                        end
+                    end})
+                    AutoloadSection:Button({Name = "set selected as autoload", Callback = function()
+                        if ThemeSelected then writefile(Library.Folders.Directory .. "/AutoLoadTheme (do not modify this).json", readfile(Library.Folders.Themes .. "/" .. ThemeSelected)) end
+                    end})
+                    AutoloadSection:Button({Name = "set current as autoload", Callback = function()
+                        writefile(Library.Folders.Directory .. "/AutoLoadTheme (do not modify this).json", Library:GetTheme())
+                    end})
+                    AutoloadSection:Button({Name = "remove autoload theme", Callback = function()
+                        writefile(Library.Folders.Directory .. "/AutoLoadTheme (do not modify this).json", "")
+                    end})
+                    Library:RefreshThemesList(ThemesDropdown)
+                end
+            end
+
+            do -- Configs
+                local ConfigsSection = Subpages["Configs"]:Section({Name = "profiles", Icon = "96491224522405", Side = 1})
+                local AutoloadSection = Subpages["Configs"]:Section({Name = "autoload", Icon = "137623872962804", Side = 2})
+                local ConfigSelected; local ConfigName
+                do
+                    local ConfigsDropdown = ConfigsSection:Dropdown({Name = "configs", Flag = "ConfigsList", Items = {}, Multi = false, Callback = function(Value) ConfigSelected = Value end})
+                    ConfigsSection:Textbox({Name = "config name", Default = "", Flag = "ConfigName", Placeholder = "enter text", Callback = function(Value) ConfigName = Value end})
+                    ConfigsSection:Button({Name = "create", Callback = function()
+                        if ConfigName and ConfigName ~= "" then writefile(Library.Folders.Configs .. "/" .. ConfigName .. ".json", Library:GetConfig()); Library:RefreshConfigsList(ConfigsDropdown) end
+                    end})
+                    ConfigsSection:Button({Name = "delete", Callback = function()
+                        if ConfigSelected then Library:DeleteConfig(ConfigSelected); Library:RefreshConfigsList(ConfigsDropdown) end
+                    end})
+                    ConfigsSection:Button({Name = "load", Callback = function()
+                        if ConfigSelected then
+                            local Success = Library:LoadConfig(readfile(Library.Folders.Configs .. "/" .. ConfigSelected))
+                            if Success then Library:Notification({Name = "Success", Description = "Loaded: " .. ConfigSelected, Duration = 3, Icon = "116339777575852", IconColor = Color3.fromRGB(52, 255, 164)}) end
+                        end
+                    end})
+                    ConfigsSection:Button({Name = "save", Callback = function()
+                        if ConfigSelected then Library:SaveConfig(ConfigSelected) end
+                    end})
+                    ConfigsSection:Button({Name = "refresh list", Callback = function() Library:RefreshConfigsList(ConfigsDropdown) end})
+                    Library:RefreshConfigsList(ConfigsDropdown)
+
+                    AutoloadSection:Button({Name = "set selected as autoload", Callback = function()
+                        if ConfigSelected then writefile(Library.Folders.Directory .. "/AutoLoadConfig (do not modify this).json", readfile(Library.Folders.Configs .. "/" .. ConfigSelected)) end
+                    end})
+                    AutoloadSection:Button({Name = "set current as autoload", Callback = function()
+                        writefile(Library.Folders.Directory .. "/AutoLoadConfig (do not modify this).json", Library:GetConfig())
+                    end})
+                    AutoloadSection:Button({Name = "remove autoload config", Callback = function()
+                        writefile(Library.Folders.Directory .. "/AutoLoadConfig (do not modify this).json", "")
+                    end})
+                end
+            end
+
+            do -- Configuration
+                local MenuSection = Subpages["Configuration"]:Section({Name = "menu", Icon = "93007870315593", Side = 1})
+                local TweeningSection = Subpages["Configuration"]:Section({Name = "tweening", Icon = "130045183204879", Side = 2})
+
+                MenuSection:Label("menu keybind", "Left"):Keybind({
+                    Name = "MenuKeybind", Flag = "MenuKeybind", Mode = "toggle", Default = Library.MenuKeybind,
+                    Callback = function() Library.MenuKeybind = Library.Flags["MenuKeybind"].Key end
+                })
+                MenuSection:Toggle({Name = "keybind list", Flag = "keybind list", Default = false, Callback = function(Value) KeybindList:SetVisibility(Value) end})
+                MenuSection:Toggle({Name = "watermark", Flag = "watermark", Default = false, Callback = function(Value) Watermark:SetVisibility(Value) end})
+                MenuSection:Button({Name = "unload", Callback = function() Library:Unload() end})
+
+                TweeningSection:Slider({Name = "time", Flag = "TweenTime", Default = Library.Tween.Time, Min = 0, Max = 5, Decimals = 0.01, Callback = function(Value) Library.Tween.Time = Value end})
+                TweeningSection:Dropdown({Name = "style", Flag = "TweenStyle", Default = "Cubic", Items = {"Linear", "Sine", "Quad", "Cubic", "Quart", "Quint", "Exponential", "Circular", "Back", "Elastic", "Bounce"}, MaxSize = 150, Callback = function(Value) Library.Tween.Style = Enum.EasingStyle[Value] end})
+                TweeningSection:Dropdown({Name = "direction", Flag = "TweenDirection", MaxSize = 55, Default = "Out", Items = {"In", "Out", "InOut"}, Callback = function(Value) Library.Tween.Direction = Enum.EasingDirection[Value] end})
+            end
+        end
+    end
+end
+
+Library:Notification({
+    Name = "Loaded",
+    Description = "Loaded in: " .. string.format("%.4f", os.clock() - LoadingTick) .. "s",
+    Duration = 5
+})
+
+Library:Init()
+
+-- =============================================
+-- GAME LOGIC COROUTINES
+-- =============================================
+
+coroutine.wrap(function()
+
+local RunService = game:GetService("RunService")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+local function findClosestHoop()
+    local courts = workspace:FindFirstChild("Courts")
+    if not courts then return nil end
+    if LocalPlayer.Values.InGame.Value == true then
+        for _,v in pairs(workspace.Courts:GetDescendants()) do
+            if v:IsA("StringValue") then
+                if v.Value == LocalPlayer.Name then
+                    return v.Parent.Parent.Hoop
+                end
+            end
+        end
+    end
+end
+
+local function getClosestPlayerWithBall()
+    local hoop = findClosestHoop()
+    if not hoop then return nil end
+    local courtValues = hoop.Parent.Values
+    if not courtValues then return nil end
+    if not LocalPlayer.Character then return nil end
+    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local t1, t2 = LocalPlayer.Values.Teammate1.Value, LocalPlayer.Values.Teammate2.Value
+    local myPos = hrp.Position
+    local closestOpponent, shortestDistance = nil, math.huge
+    for i = 1, 4 do
+        local playerValueObj = courtValues:FindFirstChild("Player" .. i)
+        if playerValueObj then
+            local playerValue = playerValueObj.Value
+            if playerValue ~= t1 and playerValue ~= t2 then
+                local opponent = game.Players:FindFirstChild(playerValue)
+                if opponent and opponent.Character and opponent.Character:FindFirstChild("HumanoidRootPart") and opponent.Values.Basketball ~= nil and opponent ~= LocalPlayer then
+                    local distance = (myPos - opponent.Character.HumanoidRootPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestOpponent = opponent
+                    end
+                end
+            end
+        end
+    end
+    return closestOpponent
+end
+
+-- Blatant Auto Guard
+RunService.Heartbeat:Connect(function()
+    if not getgenv().AutoGuard then
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Guard"):FireServer(false)
+        return
+    end
+    if getgenv().AutoGuardMethod ~= "Blatant" then return end
+    local char = LocalPlayer.Character
+    if not char then game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Guard"):FireServer(false); return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    if LocalPlayer.Values.Basketball.Value ~= nil then return end
+    local target = getClosestPlayerWithBall()
+    if not target then game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Guard"):FireServer(false); return end
+    if not target.Values.Basketball.Value then game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Guard"):FireServer(false); return end
+    local hoop = findClosestHoop()
+    if target.Character and target.Character:FindFirstChild("HumanoidRootPart") and hoop then
+        local targetPos = target.Character.HumanoidRootPart.Position
+        local hoopPos = hoop:GetPivot().Position
+        local hoopToTarget = (targetPos - hoopPos).Unit
+        local guardPos = targetPos - (hoopToTarget * (getgenv().GUARD_DISTANCE or 3))
+        local lookDir = (guardPos - hoopPos).Unit
+        local currentVelocity = hrp.AssemblyLinearVelocity
+        hrp.CFrame = CFrame.new(guardPos, guardPos + lookDir)
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Guard"):FireServer(true)
+        hrp.AssemblyLinearVelocity = Vector3.new(currentVelocity.X, currentVelocity.Y, currentVelocity.Z)
+    end
+end)
+
+-- Legit Auto Guard
+local isMovingManually = false
+local movementKeys = {[Enum.KeyCode.W]=true,[Enum.KeyCode.A]=true,[Enum.KeyCode.S]=true,[Enum.KeyCode.D]=true}
+game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if movementKeys[input.KeyCode] then isMovingManually = true end
+end)
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+    if movementKeys[input.KeyCode] then
+        local stillMoving = false
+        for key in pairs(movementKeys) do if game:GetService("UserInputService"):IsKeyDown(key) then stillMoving = true; break end end
+        isMovingManually = stillMoving
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not getgenv().AutoGuard then return end
+    if getgenv().AutoGuardMethod ~= "Legit" then return end
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+    local humanoid = myChar:FindFirstChildOfClass("Humanoid")
+    if not myHRP or not humanoid then return end
+    if LocalPlayer.Values.Basketball.Value ~= nil then return end
+    if isMovingManually then return end
+    local target = getClosestPlayerWithBall()
+    if not target or not target.Character then return end
+    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then return end
+    local velocity = targetHRP.Velocity
+    if velocity.Magnitude < 1 then velocity = targetHRP.CFrame.LookVector * 2 end
+    local opponentMoveDir = Vector3.new(velocity.X, 0, velocity.Z).Unit
+    local spacing = getgenv().GUARD_DISTANCE or 3
+    local targetPosition = targetHRP.Position + opponentMoveDir * spacing
+    local toTarget = targetPosition - myHRP.Position
+    local moveDir = Vector3.new(toTarget.X, 0, toTarget.Z)
+    local hoop = findClosestHoop()
+    if moveDir.Magnitude > 1 then
+        humanoid.WalkSpeed = getgenv().AutoGuardSpeed or 20
+        humanoid:Move(moveDir.Unit, false)
+        if hoop then
+            local hoopPos = hoop:GetPivot().Position
+            local dirToHoop = (hoopPos - myHRP.Position).Unit
+            local awayFromHoop = -dirToHoop
+            local lookCFrame = CFrame.new(myHRP.Position, myHRP.Position + Vector3.new(awayFromHoop.X, 0, awayFromHoop.Z))
+            myHRP.CFrame = CFrame.new(myHRP.Position) * (lookCFrame - lookCFrame.Position)
+        end
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Guard"):FireServer(true)
+    else
+        humanoid:Move(Vector3.zero, false)
+    end
+end)
+end)()
+
+coroutine.wrap(function()
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local RunService = game:GetService("RunService")
+    local player = Players.LocalPlayer
+    local BlockRemote = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Block")
+    local currentTrackedPlayer = nil
+    local currentConnection = nil
+    local lastBlockTime = 0
+    local BLOCK_COOLDOWN = 0.5
+
+    local function getClosestOpponentWithBall()
+        if not player.Character then return nil end
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return nil end
+        local myPos = hrp.Position
+        local closestOpponent, shortestDistance = nil, math.huge
+        if player.Values.InGame.Value ~= true then return nil end
+        local t1 = player.Values.Teammate1.Value
+        local t2 = player.Values.Teammate2.Value
+        local court = nil
+        for _, v in pairs(workspace.Courts:GetDescendants()) do
+            if v:IsA("StringValue") and v.Value == player.Name then court = v.Parent.Parent; break end
+        end
+        if not court then return nil end
+        for i = 1, 4 do
+            local playerValue = court.Values["Player" .. i].Value
+            if playerValue ~= t1 and playerValue ~= t2 and playerValue ~= player.Name then
+                local opponent = Players:FindFirstChild(playerValue)
+                if opponent and opponent.Character then
+                    local oppHrp = opponent.Character:FindFirstChild("HumanoidRootPart")
+                    if oppHrp and opponent.Values.Basketball.Value ~= nil then
+                        local distance = (myPos - oppHrp.Position).Magnitude
+                        local MAX_DISTANCE = getgenv().AutoBlockRange or 20
+                        if distance < shortestDistance and distance <= MAX_DISTANCE then
+                            shortestDistance = distance; closestOpponent = opponent
+                        end
+                    end
+                end
+            end
+        end
+        return closestOpponent
+    end
+
+    local function performBlock()
+        local currentTime = tick()
+        if currentTime - lastBlockTime < BLOCK_COOLDOWN then return end
+        lastBlockTime = currentTime
+        BlockRemote:FireServer()
+    end
+
+    local function setupListener(targetPlayer)
+        if not targetPlayer then return end
+        if currentConnection then currentConnection:Disconnect(); currentConnection = nil end
+        currentTrackedPlayer = targetPlayer
+        local shootingValue = targetPlayer.Values:WaitForChild("Shooting", 5)
+        if not shootingValue then return end
+        currentConnection = shootingValue:GetPropertyChangedSignal("Value"):Connect(function()
+            if shootingValue.Value == true and getgenv().AutoBlock == true then
+                performBlock()
+            end
+        end)
+    end
+
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+            if not getgenv().AutoBlock then
+                if currentConnection then currentConnection:Disconnect(); currentConnection = nil end
+                currentTrackedPlayer = nil
+                task.wait(1); continue
+            end
+            local closestPlayer = getClosestOpponentWithBall()
+            if closestPlayer ~= currentTrackedPlayer then
+                if closestPlayer then setupListener(closestPlayer)
+                else
+                    if currentConnection then currentConnection:Disconnect(); currentConnection = nil end
+                    currentTrackedPlayer = nil
+                end
+            end
+        end
+    end)
+
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        currentTrackedPlayer = nil
+        if currentConnection then currentConnection:Disconnect(); currentConnection = nil end
+    end)
+end)()
+
+-- =============================================
+-- EXTERNAL SCRIPTS
+-- =============================================
+loadstring(game:HttpGet("https://github.com/percwalkkk/ArcadeNation/raw/refs/heads/main/SpeedBoost.lua"))()
+loadstring(game:HttpGet("https://github.com/percwalkkk/ArcadeNation/raw/refs/heads/main/AutoSprint.lua"))()
+loadstring(game:HttpGet("https://github.com/percwalkkk/ArcadeNation/raw/refs/heads/main/Aimbot.lua"))()
+loadstring(game:HttpGet("https://github.com/percwalkkk/ArcadeNation/raw/refs/heads/main/UpdateOpponent.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/percwalkkk/ArcadeNation/refs/heads/main/SpinBot.lua"))()
+
+end -- closes the if getgenv().key == 676767 then block
